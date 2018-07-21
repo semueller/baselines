@@ -13,7 +13,8 @@ from baselines.her.rollout import RolloutWorker
 @click.option('--seed', type=int, default=0)
 @click.option('--n_test_rollouts', type=int, default=10)
 @click.option('--render', type=int, default=1)
-def main(policy_file, seed, n_test_rollouts, render):
+@click.option('--with_forces', type=bool, default=False)
+def main(policy_file, seed, n_test_rollouts, render, with_forces):
     set_global_seeds(seed)
 
     # Load policy.
@@ -23,6 +24,7 @@ def main(policy_file, seed, n_test_rollouts, render):
 
     # Prepare params.
     params = config.DEFAULT_PARAMS
+    params['with_forces'] = with_forces
     if env_name in config.DEFAULT_ENV_PARAMS:
         params.update(config.DEFAULT_ENV_PARAMS[env_name])  # merge env-specific parameters in
     params['env_name'] = env_name
@@ -36,6 +38,7 @@ def main(policy_file, seed, n_test_rollouts, render):
         'use_target_net': params['test_with_polyak'],
         'compute_Q': True,
         'rollout_batch_size': 1,
+        'with_forces': with_forces,
         'render': bool(render),
     }
 

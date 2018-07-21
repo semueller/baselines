@@ -156,6 +156,10 @@ def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
 def configure_dims(params):
     env = cached_make_env(params['make_env'])
     env.reset()
+
+    if params['with_forces']:
+        env.env.use_forces()
+
     obs, _, _, info = env.step(env.action_space.sample())
 
     dims = {
@@ -163,6 +167,7 @@ def configure_dims(params):
         'u': env.action_space.shape[0],
         'g': obs['desired_goal'].shape[0],
     }
+    
     for key, value in info.items():
         value = np.array(value)
         if value.ndim == 0:

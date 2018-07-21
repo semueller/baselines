@@ -83,7 +83,7 @@ def train(policy, rollout_worker, evaluator,
 
 
 def launch(
-    env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
+    env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return, with_forces, plot_forces,
     override_params={}, save_policies=True
 ):
     # Fork for multi-CPU MPI implementation.
@@ -116,6 +116,8 @@ def launch(
 
     # Prepare params.
     params = config.DEFAULT_PARAMS
+    params['with_forces'] = with_forces
+    params['plot_forces'] = plot_forces
     params['env_name'] = env
     params['replay_strategy'] = replay_strategy
     if env in config.DEFAULT_ENV_PARAMS:
@@ -146,6 +148,8 @@ def launch(
         'use_target_net': False,
         'use_demo_states': True,
         'compute_Q': False,
+        'with_forces': with_forces,
+        'plot_forces': plot_forces,
         'T': params['T'],
     }
 
@@ -154,6 +158,8 @@ def launch(
         'use_target_net': params['test_with_polyak'],
         'use_demo_states': False,
         'compute_Q': True,
+        'with_forces': with_forces,
+        'plot_forces': plot_forces,
         'T': params['T'],
     }
 
@@ -183,6 +189,8 @@ def launch(
 @click.option('--policy_save_interval', type=int, default=5, help='the interval with which policy pickles are saved. If set to 0, only the best and latest policy will be pickled.')
 @click.option('--replay_strategy', type=click.Choice(['future', 'none']), default='future', help='the HER replay strategy to be used. "future" uses HER, "none" disables HER.')
 @click.option('--clip_return', type=int, default=1, help='whether or not returns should be clipped')
+@click.option('--with_forces', type=bool, default=False)
+@click.option('--plot_forces', type=bool, default=False)
 def main(**kwargs):
     launch(**kwargs)
 
