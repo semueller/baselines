@@ -125,7 +125,7 @@ def simple_goal_subtract(a, b):
     return a - b
 
 
-def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
+def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True, scope=None):
     sample_her_transitions = configure_her(params)
     # Extract relevant parameters.
     gamma = params['gamma']
@@ -145,6 +145,7 @@ def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
                         'subtract_goals': simple_goal_subtract,
                         'sample_transitions': sample_her_transitions,
                         'gamma': gamma,
+                        'scope': scope,
                         })
     ddpg_params['info'] = {
         'env_name': params['env_name'],
@@ -167,7 +168,7 @@ def configure_dims(params):
         'u': env.action_space.shape[0],
         'g': obs['desired_goal'].shape[0],
     }
-    
+
     for key, value in info.items():
         value = np.array(value)
         if value.ndim == 0:

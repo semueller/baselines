@@ -6,6 +6,8 @@ import numpy as np
 import json
 from mpi4py import MPI
 
+import tensorflow as tf
+
 from baselines import logger
 from baselines.common import set_global_seeds
 from baselines.common.mpi_moments import mpi_moments
@@ -16,6 +18,23 @@ from baselines.her.util import mpi_fork
 from subprocess import CalledProcessError
 
 
+def get_counter(epoch_log_path):
+    try:
+        with open(epoch_log_path) as file:
+            return int(file.readlines()[-1])
+    except FileNotFoundError as e:
+        logger.info(e)
+        logger.info('creating epoch counter file')
+        try:
+            with open(epoch_log_path, 'w+') as file:
+                file.write('0\n')
+                return 0
+        except Exception as e:
+            logger.info(e)
+            logger.info('epoch counting file error, continuing without')
+            return 0
+
+
 def mpi_average(value):
     if value == []:
         value = [0.]
@@ -24,19 +43,35 @@ def mpi_average(value):
     return mpi_moments(np.array(value))[0]
 
 
-def train(policy, rollout_worker, evaluator,
+def train(env, policy, rollout_worker, evaluator,
           n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
-          save_policies, **kwargs):
+          save_policies, policy_path=None, **kwargs):
+
+    saver = tf.train.Saver()
+    model_name='model.ckpt'
+    if policy_path is not None:
+        saver.restore(policy.sess, policy_path+model_name)
+        logger.info("Successfully restored policy from {}".format(policy_path))
+    if policy_path is None:
+        policy_path = ''.join(['./trained/', env, '_', policy.scope, '/'])
+        if not os.path.exists(policy_path):
+            os.makedirs(policy_path)
+    epoch_log_path = logger.get_dir()+'/epoch.txt'
+    trained_epochs = get_counter(epoch_log_path)
+
+    policy_path += model_name
+
     rank = MPI.COMM_WORLD.Get_rank()
 
-    latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pkl')
-    best_policy_path = os.path.join(logger.get_dir(), 'policy_best.pkl')
-    periodic_policy_path = os.path.join(logger.get_dir(), 'policy_{}.pkl')
+    # latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pkl')
+    # best_policy_path = os.path.join(logger.get_dir(), 'policy_best.pkl')
+    # periodic_policy_path = os.path.join(logger.get_dir(), 'policy_{}.pkl')
 
     logger.info("Training...")
     best_success_rate = -1
-    for epoch in range(n_epochs):
+    for epoch in range(trained_epochs+1, n_epochs):
         # train
+        logger.info("Episode {}/{}".format(epoch, n_epochs))
         rollout_worker.clear_history()
         for _ in range(n_cycles):
             episode = rollout_worker.generate_rollouts()
@@ -66,13 +101,14 @@ def train(policy, rollout_worker, evaluator,
         success_rate = mpi_average(evaluator.current_success_rate())
         if rank == 0 and success_rate >= best_success_rate and save_policies:
             best_success_rate = success_rate
-            logger.info('New best success rate: {}. Saving policy to {} ...'.format(best_success_rate, best_policy_path))
-            evaluator.save_policy(best_policy_path)
-            evaluator.save_policy(latest_policy_path)
-        if rank == 0 and policy_save_interval > 0 and epoch % policy_save_interval == 0 and save_policies:
-            policy_path = periodic_policy_path.format(epoch)
-            logger.info('Saving periodic policy to {} ...'.format(policy_path))
-            evaluator.save_policy(policy_path)
+            logger.info('New best success rate: {}. Saving policy to {} ...'.format(best_success_rate, policy_path))
+            pth = saver.save(policy.sess, policy_path)
+            try:
+                with open(epoch_log_path, 'a') as file:
+                    file.write(str(epoch)+'\n')
+            except Exception as e:
+                logger.info(e)
+            print("saved policy to {}".format(pth))
 
         # make sure that different threads have different seeds
         local_uniform = np.random.uniform(size=(1,))
@@ -83,8 +119,8 @@ def train(policy, rollout_worker, evaluator,
 
 
 def launch(
-    env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return, with_forces, plot_forces,
-    override_params={}, save_policies=True
+    env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return, policy_path, with_forces, plot_forces,
+    scope=None, override_params={}, save_policies=True
 ):
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
@@ -141,7 +177,7 @@ def launch(
         logger.warn()
 
     dims = config.configure_dims(params)
-    policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return)
+    policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return, scope=scope)
 
     rollout_params = {
         'exploit': False,
@@ -174,10 +210,11 @@ def launch(
     evaluator.seed(rank_seed)
 
     train(
-        logdir=logdir, policy=policy, rollout_worker=rollout_worker,
+        env=env, logdir=logdir, policy=policy, rollout_worker=rollout_worker,
         evaluator=evaluator, n_epochs=n_epochs, n_test_rollouts=params['n_test_rollouts'],
         n_cycles=params['n_cycles'], n_batches=params['n_batches'],
-        policy_save_interval=policy_save_interval, save_policies=save_policies)
+        policy_save_interval=policy_save_interval, save_policies=save_policies,
+        policy_path=policy_path)
 
 
 @click.command()
@@ -191,6 +228,8 @@ def launch(
 @click.option('--clip_return', type=int, default=1, help='whether or not returns should be clipped')
 @click.option('--with_forces', type=bool, default=False)
 @click.option('--plot_forces', type=bool, default=False)
+@click.option('--policy_path', type=str, default=None, help='path to policy to be loaded and trained')
+@click.option('--scope', type=str, default=None, help='name of scope for tf')
 def main(**kwargs):
     launch(**kwargs)
 

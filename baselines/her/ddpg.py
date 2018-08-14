@@ -51,6 +51,13 @@ class DDPG(object):
             gamma (float): gamma used for Q learning updates
             reuse (boolean): whether or not the networks should be reused
         """
+        if scope is None:
+            print("setting default scope")
+            scope = 'ddpg'
+        # self.scope = input("scope? ")
+        self.scope = scope
+        print("using scope: {}".format(self.scope))
+
         if self.clip_return is None:
             self.clip_return = np.inf
 
