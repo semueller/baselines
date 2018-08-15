@@ -83,7 +83,7 @@ class RolloutWorker:
         and `g` arrays accordingly.
         """
         obs = self.envs[i].reset()
-
+        obs['observation'] = np.concatenate([obs['observation'], [1.0, 0.0]])
         if self.wf:
             self.initial_o[i] = np.append(obs['observation'], np.ndarray([0 for _ in range(16)]))
         else:
@@ -135,12 +135,14 @@ class RolloutWorker:
             o_new = np.empty((self.rollout_batch_size, self.dims['o']))
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
+            encodings = {'HandManipulateBox-v0': [1.0, 0.0], 'HandManipulatePen-v0': [0.0, 1.0]}
             # compute new states and observations
             for i in range(self.rollout_batch_size):
                 try:
                     # We fully ignore the reward here because it will have to be re-computed
                     # for HER.
                     curr_o_new, _, _, info = self.envs[i].step(u[i])
+                    curr_o_new['observation'] = np.concatenate([curr_o_new['observation'], [1.0, 0.0]])#encodings[self.envs[i].name]])
 
                     if self.plot_forces:
                         for j in range(self.NUM_SENSORS):

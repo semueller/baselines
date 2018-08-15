@@ -18,21 +18,27 @@ from baselines.her.util import mpi_fork
 from subprocess import CalledProcessError
 
 
-def get_counter(epoch_log_path):
+def load_stats(epoch_log_path):
+    # loads epoch counter and highest_success rate
+    epoch = 0
+    success_rate = -1
     try:
         with open(epoch_log_path) as file:
-            return int(file.readlines()[-1])
+            line = (file.readlines()[-1]).split(' ')
+            epoch = int(line[0])
+            success_rate = float(line[1])
+            return epoch, success_rate
     except FileNotFoundError as e:
         logger.info(e)
         logger.info('creating epoch counter file')
         try:
             with open(epoch_log_path, 'w+') as file:
-                file.write('0\n')
-                return 0
+                file.write('0 -1\n')
+                return epoch, success_rate
         except Exception as e:
             logger.info(e)
             logger.info('epoch counting file error, continuing without')
-            return 0
+            return epoch, success_rate
 
 
 def mpi_average(value):
@@ -45,7 +51,7 @@ def mpi_average(value):
 
 def train(env, policy, rollout_worker, evaluator,
           n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
-          save_policies, policy_path=None, **kwargs):
+          save_policies=True, policy_path=None, **kwargs):
 
     saver = tf.train.Saver()
     model_name='model.ckpt'
@@ -57,18 +63,13 @@ def train(env, policy, rollout_worker, evaluator,
         if not os.path.exists(policy_path):
             os.makedirs(policy_path)
     epoch_log_path = logger.get_dir()+'/epoch.txt'
-    trained_epochs = get_counter(epoch_log_path)
+    trained_epochs, best_success_rate = load_stats(epoch_log_path)
 
     policy_path += model_name
 
     rank = MPI.COMM_WORLD.Get_rank()
 
-    # latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pkl')
-    # best_policy_path = os.path.join(logger.get_dir(), 'policy_best.pkl')
-    # periodic_policy_path = os.path.join(logger.get_dir(), 'policy_{}.pkl')
-
     logger.info("Training...")
-    best_success_rate = -1
     for epoch in range(trained_epochs+1, n_epochs):
         # train
         logger.info("Episode {}/{}".format(epoch, n_epochs))
@@ -105,7 +106,7 @@ def train(env, policy, rollout_worker, evaluator,
             pth = saver.save(policy.sess, policy_path)
             try:
                 with open(epoch_log_path, 'a') as file:
-                    file.write(str(epoch)+'\n')
+                    file.write(str(epoch)+' '+str(best_success_rate)+'\n')
             except Exception as e:
                 logger.info(e)
             print("saved policy to {}".format(pth))
@@ -137,6 +138,8 @@ def launch(
     rank = MPI.COMM_WORLD.Get_rank()
 
     # Configure logging
+    if logdir is None:
+        logdir='./logs/'
     if rank == 0:
         if logdir or logger.get_dir() is None:
             logger.configure(dir=logdir)
@@ -177,6 +180,7 @@ def launch(
         logger.warn()
 
     dims = config.configure_dims(params)
+    dims['o'] = dims['o'] + 2
     policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return, scope=scope)
 
     rollout_params = {
