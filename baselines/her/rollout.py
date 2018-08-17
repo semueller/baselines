@@ -38,7 +38,6 @@ class RolloutWorker:
         self.wf = kwargs['with_forces']
 
         if self.wf:
-            self.dims['o'] = 77
             for e in self.envs:
                 e.env.use_forces()
 
@@ -58,7 +57,7 @@ class RolloutWorker:
         self.clear_history()
 
         if self.plot_forces:
-            self.NUM_SENSORS = 16
+            self.NUM_SENSORS =  self.envs[0].env.num_forces
             self.NUM_PLOT_LOOKBACK = 101
 
             self.xdata = [i for i in range(self.NUM_PLOT_LOOKBACK)]
@@ -84,10 +83,7 @@ class RolloutWorker:
         """
         obs = self.envs[i].reset()
 
-        if self.wf:
-            self.initial_o[i] = np.append(obs['observation'], np.ndarray([0 for _ in range(16)]))
-        else:
-            self.initial_o[i] = obs['observation']
+        self.initial_o[i] = obs['observation']
 
         self.initial_ag[i] = obs['achieved_goal']
         self.g[i] = obs['desired_goal']
