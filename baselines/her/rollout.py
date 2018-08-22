@@ -8,12 +8,14 @@ import matplotlib
 from matplotlib import pyplot as plt
 from baselines.her.util import convert_episode_to_batch_major, store_args
 
+import gym
+
 class RolloutWorker:
 
     @store_args
     def __init__(self, make_env, policy, dims, logger, T, rollout_batch_size=1,
                  exploit=False, use_target_net=False, compute_Q=False, noise_eps=0,
-                 random_eps=0, history_len=100, render=False, **kwargs):
+                 random_eps=0, history_len=100, render=False, codebook=None, **kwargs):
         """Rollout worker generates experience by interacting with one or many environments.
 
         Args:
@@ -32,7 +34,21 @@ class RolloutWorker:
             history_len (int): length of history for statistics smoothing
             render (boolean): whether or not to render the rollouts
         """
-        self.envs = [make_env() for _ in range(rollout_batch_size)]
+        self.codebook = codebook
+        if callable(make_env):
+            self.envs = [make_env() for _ in range(rollout_batch_size)]
+        elif isinstance(make_env, list): # list?
+            self.envs = []
+            if callable(make_env[0]): # list of factory functions?
+                for factory in make_env:
+                    self.envs += [factory() for _ in range(rollout_batch_size)]
+            if isinstance(make_env[0], str): # list of envnames as strings?
+                for envname in make_env:
+                    self.envs += [gym.make(envname) for _ in range(rollout_batch_size)]
+        else:
+            raise Exception("could not initialize envs")
+
+
         assert self.T > 0
 
         self.wf = kwargs['with_forces']
@@ -135,14 +151,19 @@ class RolloutWorker:
             o_new = np.empty((self.rollout_batch_size, self.dims['o']))
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
-            encodings = {'HandManipulateBox-v0': [1.0, 0.0], 'HandManipulatePen-v0': [0.0, 1.0]}
+
             # compute new states and observations
             for i in range(self.rollout_batch_size):
                 try:
                     # We fully ignore the reward here because it will have to be re-computed
                     # for HER.
-                    curr_o_new, _, _, info = self.envs[i].step(u[i])
-                    curr_o_new['observation'] = np.concatenate([curr_o_new['observation'], [1.0, 0.0]])#encodings[self.envs[i].name]])
+                    curr_env = self.envs[i]
+                    # print(curr_env.name)
+                    curr_o_new, _, _, info = curr_env.step(u[i])
+                    if self.codebook is not None:
+                        one_hot_code = self.codebook[curr_env.name]
+                        curr_o_new['observation'] = np.concatenate([curr_o_new['observation'], one_hot_code])
+                        # print(curr_o_new['observation'][-2:])
 
                     if self.plot_forces:
                         for j in range(self.NUM_SENSORS):

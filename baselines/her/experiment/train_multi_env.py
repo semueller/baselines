@@ -121,16 +121,12 @@ def train(env, policy, rollout_worker, evaluator,
 
 def launch(
     env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return, policy_path, with_forces, plot_forces,
-    scope=None, override_params={}, save_policies=True, one_hot_encoding=None
+    scope=None, override_params={}, save_policies=True
 ):
     codebook = None
     if isinstance(env, tuple) or isinstance(env, list):
-        logger.info("this script is for training on a single env only")
-        sys.exit(-1)
-    if one_hot_encoding is not None:
-        one_hot_length = one_hot_encoding[0]
-        one_hot_idx = one_hot_encoding[1]
-        codebook = {env: np.eye(one_hot_length)[one_hot_idx]}
+        codes = np.eye(len(env))
+        codebook = dict([x for x in zip(env, codes[:])])
 
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
@@ -231,7 +227,7 @@ def launch(
 
 
 @click.command()
-@click.option('--env', type=str, default='FetchReach-v1', help='the name of the OpenAI Gym environment that you want to train on')
+@click.option('--env', multiple=True, type=str, default='FetchReach-v1', help='the name of the OpenAI Gym environment that you want to train on')
 @click.option('--logdir', type=str, default=None, help='the path to where logs and policy pickles should go. If not specified, creates a folder in /tmp/')
 @click.option('--n_epochs', type=int, default=50, help='the number of training epochs to run')
 @click.option('--num_cpu', type=int, default=1, help='the number of CPU cores to use (using MPI)')
@@ -243,7 +239,6 @@ def launch(
 @click.option('--plot_forces', type=bool, default=False)
 @click.option('--policy_path', type=str, default=None, help='path to policy to be loaded and trained')
 @click.option('--scope', type=str, default=None, help='name of scope for tf')
-@click.option('--one_hot_encoding', type=(int, int), default=None, help='length_of_encoding_vec, idx_of_one')
 def main(**kwargs):
     launch(**kwargs)
 

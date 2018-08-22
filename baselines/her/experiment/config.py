@@ -68,8 +68,21 @@ def prepare_params(kwargs):
 
     env_name = kwargs['env_name']
 
-    def make_env():
-        return gym.make(env_name)
+    if isinstance(env_name, list) or isinstance(env_name, tuple):
+        assert isinstance(env_name[0], str)
+        def make_env():
+            make_env.counter +=1
+            name = env_name[make_env.counter % len(env_name)] # iterate through env_name list
+            env = gym.make(name)
+            env.name = name
+            return env
+    else:
+        def make_env():
+            env = gym.make(env_name)
+            env.name = env_name
+            return env
+
+    make_env.counter = 0
     kwargs['make_env'] = make_env
     tmp_env = cached_make_env(kwargs['make_env'])
     assert hasattr(tmp_env, '_max_episode_steps')
