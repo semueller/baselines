@@ -127,6 +127,7 @@ def launch(
     if isinstance(env, tuple) or isinstance(env, list):
         codes = np.eye(len(env))
         codebook = dict([x for x in zip(env, codes[:])])
+    logger.info('codebook used for training: {}'.format(codebook))
 
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
