@@ -58,14 +58,13 @@ def train(env, policy, rollout_worker, evaluator,
     if policy_path is not None:
         saver.restore(policy.sess, policy_path+model_name)
         logger.info("Successfully restored policy from {}".format(policy_path))
+    return
     if policy_path is None:
         policy_path = ''.join(['./trained/', str(env), '_', policy.scope, '/'])
         if not os.path.exists(policy_path):
             os.makedirs(policy_path)
     epoch_log_path = logger.get_dir()+'/epoch.txt'
     trained_epochs, best_success_rate = load_stats(epoch_log_path)
-
-    policy_path += model_name
 
     rank = MPI.COMM_WORLD.Get_rank()
 
@@ -102,8 +101,9 @@ def train(env, policy, rollout_worker, evaluator,
         success_rate = mpi_average(evaluator.current_success_rate())
         if rank == 0 and success_rate >= best_success_rate and save_policies:
             best_success_rate = success_rate
-            logger.info('New best success rate: {}. Saving policy to {} ...'.format(best_success_rate, policy_path))
-            pth = saver.save(policy.sess, policy_path)
+            logger.info('New best success rate: {}. Saving policy to {} ...'.format(best_success_rate, policy_path+model_name))
+            pth = saver.save(policy.sess, policy_path+model_name)
+            evaluator.save_policy(policy_path+'policy.pkl')
             try:
                 with open(epoch_log_path, 'a') as file:
                     file.write(str(epoch)+' '+str(best_success_rate)+'\n')

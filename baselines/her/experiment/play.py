@@ -24,15 +24,17 @@ def main(policy_file, seed, n_test_rollouts, render, with_forces):
 
     # Prepare params.
     params = config.DEFAULT_PARAMS
+    params['scope'] = policy.scope
     params['with_forces'] = with_forces
     params['plot_forces'] = False
     if env_name in config.DEFAULT_ENV_PARAMS:
         params.update(config.DEFAULT_ENV_PARAMS[env_name])  # merge env-specific parameters in
-    params['env_name'] = env_name
+    params['env_name'] = 'HandManipulateBlock-v0'
     params = config.prepare_params(params)
     config.log_params(params, logger=logger)
 
     dims = config.configure_dims(params)
+    dims['o'] = dims['o'] + 2
 
     eval_params = {
         'exploit': True,
@@ -46,8 +48,10 @@ def main(policy_file, seed, n_test_rollouts, render, with_forces):
 
     for name in ['T', 'gamma', 'noise_eps', 'random_eps']:
         eval_params[name] = params[name]
-    
-    evaluator = RolloutWorker(params['make_env'], policy, dims, logger, **eval_params)
+    codebook = {'HandManipulateBlock-v0': [1, 0],
+                'HandManipulatePen-v0': [0, 1]
+                }
+    evaluator = RolloutWorker(params['make_env'], policy, dims, logger, codebook=codebook, **eval_params)
     evaluator.seed(seed)
 
     # Run evaluation.
