@@ -2,6 +2,7 @@ import tensorflow as tf
 
 import numpy as np
 
+
 def print_kernels(network):
     print('PRINTNG {}'.format(network.scope))
     sess = tf.get_default_session()
@@ -14,33 +15,35 @@ def print_kernels(network):
         print(sess.run(v))
     print('#### DONE ####')
 
+
 def get_hidden_units(network):
     # return bias and kernel variabels from /main /target scope
     return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=network.scope+'/main')+tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=network.scope+'/target')
+
 
 def pad_with(vector, pad_width, iaxis, kwargs):
     vector[:pad_width[0]] = 0
     vector[-pad_width[1]:] = 0
     return vector
 
+
 def merging_routine(beta, temp, expert, student):
     sess = tf.get_default_session()
 
     # move everything from student to temp
-    for t, s in zip(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=temp.scope), tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=student.scope)):
-        sess.run(tf.assign(t, s))
+    sess.run([
+        tf.assign(t, s) for t, s in zip(
+            tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=temp.scope),
+            tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=student.scope))
+    ])
 
     exp_vars = get_hidden_units(expert)
-    std_vars = get_hidden_units(student) # sanity check: student and temp variables should hold the same values
+    std_vars = get_hidden_units(student)  # sanity check: student and temp variables should hold the same values
     tmp_vars = get_hidden_units(temp)
-
     # print_kernels(temp)
-
     # interpolate hidden units of main and target scopes
-    # of Q network and policy network of student and expert and store in temp
-    for t, e, s in zip(tmp_vars, exp_vars, std_vars):
-        if '_0/kernel' in e.name:
-            t = tf.assign(t, # assign value
+    sess.run([
+        tf.assign(t,  # assign value
                           # (1-beta)*student + beta*expert
                           tf.add(tf.scalar_mul(1.-beta, s),
                                  tf.scalar_mul(beta,
@@ -49,9 +52,8 @@ def merging_routine(beta, temp, expert, student):
                                                tf.pad(e, tf.constant([[0, int(s.shape[0]-e.shape[0])], [0, 0]]))
                                                )
                                  )
-                          )
-        else: # its either a bias or a weight matrix deeper into the network, all having "correct" shape
-            t = tf.assign(t, tf.add(tf.scalar_mul(1.-beta, s), tf.scalar_mul(beta, e)))
-
-        sess.run(t)
-
+                          ) if '_0/kernel' in e.name
+        else
+            tf.assign(t, tf.add(tf.scalar_mul(1.-beta, s), tf.scalar_mul(beta, e)))
+        for t, e, s in zip(tmp_vars, exp_vars, std_vars)
+    ])
