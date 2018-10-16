@@ -1,14 +1,16 @@
 from collections import deque
 
 import numpy as np
-import pickle
+import pickle, os, datetime, subprocess
 from mujoco_py import MujocoException
 
 import matplotlib
 from matplotlib import pyplot as plt
 from baselines.her.util import convert_episode_to_batch_major, store_args
+from PIL import Image
 
 import gym
+import gym.spaces
 
 class RolloutWorker:
 
@@ -34,6 +36,7 @@ class RolloutWorker:
             history_len (int): length of history for statistics smoothing
             render (boolean): whether or not to render the rollouts
         """
+        self.dims = dims
         self.codebook = codebook
         if callable(make_env):
             self.envs = [make_env() for _ in range(rollout_batch_size)]
@@ -94,6 +97,10 @@ class RolloutWorker:
 
             self.lines = [self.ax.plot(self.xdata, self.forcedata[i])[0] for i in range(self.NUM_SENSORS)]
 
+        self.render_and_save_png = False  # ndrw
+        self.render = False
+
+
     def reset_rollout(self, i):
         """Resets the `i`-th rollout environment, re-samples a new goal, and updates the `initial_o`
         and `g` arrays accordingly.
@@ -114,10 +121,12 @@ class RolloutWorker:
         for i in range(self.rollout_batch_size):
             self.reset_rollout(i)
 
-    def generate_rollouts(self):
+    def generate_rollouts(self, n=0):
         """Performs `rollout_batch_size` rollouts in parallel for time horizon `T` with the current
         policy acting on it accordingly.
         """
+        directory = './png/'#+datetime.datetime.now().strftime("%m%d_%H%M%S") + os.sep
+
         self.reset_all_rollouts()
 
         # compute observations
@@ -186,6 +195,12 @@ class RolloutWorker:
                         info_values[idx][t, i] = info[key]
                     if self.render:
                         self.envs[i].render()
+                    elif self.render_and_save_png:  # ndrw
+                        rgb_array = self.envs[i].render(mode='rgb_array')
+                        im = Image.fromarray(rgb_array)
+                        if not os.path.exists(directory):
+                            os.makedirs(directory)
+                        im.save(directory + "pic_"+str(n)+"{0:05d}.png".format(t))
                 except MujocoException as e:
                     return self.generate_rollouts()
 
@@ -201,6 +216,12 @@ class RolloutWorker:
             goals.append(self.g.copy())
             o[...] = o_new
             ag[...] = ag_new
+
+        if self.render_and_save_png:  # ndrw - makes video out of the saved .png files
+            cmd = "cd " + directory + "; ffmpeg -y -framerate 30 -pattern_type glob -i '*.png' -vf 'crop=1366:748:840:200' -c:v libx264 -pix_fmt yuv420p _rollout.mp4"
+            #  ffmpeg -framerate 30 -pattern_type glob -i '*.png' -vf 'crop=1280:1280:600:600' -c:v libx264 -pix_fmt yuv420p _rollout.mov
+            subprocess.call(cmd, shell=True)
+
         obs.append(o.copy())
         achieved_goals.append(ag.copy())
         self.initial_o[:] = o
@@ -220,6 +241,7 @@ class RolloutWorker:
         if self.compute_Q:
             self.Q_history.append(np.mean(Qs))
         self.n_episodes += self.rollout_batch_size
+
 
         return convert_episode_to_batch_major(episode)
 

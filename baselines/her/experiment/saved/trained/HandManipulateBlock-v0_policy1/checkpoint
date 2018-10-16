@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/bing/git/baselines/baselines/her/experiment/saved/trained/HandManipulateBlock-v0_policy1/model.ckpt"
+all_model_checkpoint_paths: "/home/bing/git/baselines/baselines/her/experiment/saved/trained/HandManipulateBlock-v0_policy1/model.ckpt"

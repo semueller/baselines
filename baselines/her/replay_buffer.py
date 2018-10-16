@@ -18,6 +18,7 @@ class ReplayBuffer:
         self.size = size_in_transitions // T
         self.T = T
         self.sample_transitions = sample_transitions
+        self.size_in_transitions = size_in_transitions
 
         # self.buffers is {key: array(size_in_episodes x T or T+1 x dim_key)}
         self.buffers = {key: np.empty([self.size, *shape])
@@ -28,6 +29,8 @@ class ReplayBuffer:
         self.n_transitions_stored = 0
 
         self.lock = threading.Lock()
+
+
 
     @property
     def full(self):

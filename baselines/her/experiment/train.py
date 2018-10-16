@@ -58,7 +58,10 @@ def train(env, policy, rollout_worker, evaluator,
     if policy_path is not None:
         saver.restore(policy.sess, policy_path+model_name)
         logger.info("Successfully restored policy from {}".format(policy_path))
-    return
+    # return
+    # evaluator.save_policy(policy_path+'policy.pkl')
+    # print("saved {}".format(policy_path+"policy.pkl"))
+    
     if policy_path is None:
         policy_path = ''.join(['./trained/', str(env), '_', policy.scope, '/'])
         if not os.path.exists(policy_path):
@@ -176,20 +179,20 @@ def launch(
     params = config.prepare_params(params)
     config.log_params(params, logger=logger)
 
-    if num_cpu == 1:
-        logger.warn()
-        logger.warn('*** Warning ***')
-        logger.warn(
-            'You are running HER with just a single MPI worker. This will work, but the ' +
-            'experiments that we report in Plappert et al. (2018, https://arxiv.org/abs/1802.09464) ' +
-            'were obtained with --num_cpu 19. This makes a significant difference and if you ' +
-            'are looking to reproduce those results, be aware of this. Please also refer to ' +
-            'https://github.com/openai/baselines/issues/314 for further details.')
-        logger.warn('****************')
-        logger.warn()
+    # if num_cpu == 1:
+    #     logger.warn()
+    #     logger.warn('*** Warning ***')
+    #     logger.warn(
+    #         'You are running HER with just a single MPI worker. This will work, but the ' +
+    #         'experiments that we report in Plappert et al. (2018, https://arxiv.org/abs/1802.09464) ' +
+    #         'were obtained with --num_cpu 19. This makes a significant difference and if you ' +
+    #         'are looking to reproduce those results, be aware of this. Please also refer to ' +
+    #         'https://github.com/openai/baselines/issues/314 for further details.')
+    #     logger.warn('****************')
+    #     logger.warn()
 
     dims = config.configure_dims(params)
-    dims['o'] = dims['o'] + 2
+    dims['o'] = dims['o'] + 2 # +2 for one hot encoding
     policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return, scope=scope)
 
     rollout_params = {
@@ -243,7 +246,7 @@ def launch(
 @click.option('--plot_forces', type=bool, default=False)
 @click.option('--policy_path', type=str, default=None, help='path to policy to be loaded and trained')
 @click.option('--scope', type=str, default=None, help='name of scope for tf')
-@click.option('--one_hot_encoding', type=(int, int), default=None, help='length_of_encoding_vec, idx_of_one')
+# @click.option('--one_hot_encoding', type=(int, int), default=None, help='length_of_encoding_vec, idx_of_one')
 def main(**kwargs):
     launch(**kwargs)
 

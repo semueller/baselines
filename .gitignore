@@ -1,6 +1,6 @@
 *.swp
 *.pyc
-*.pkl
+#*.pkl
 *.py~
 .pytest_cache
 .DS_Store
@@ -20,9 +20,10 @@ keys/
 
 .idea
 
-logs/
-trained/
-
+#logs/
+#trained/
+vids/
+png/ 
 .ipynb_checkpoints
 ghostdriver.log
 
