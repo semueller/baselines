@@ -266,7 +266,7 @@ def parse_args():
     parser.add_argument('--max_trajectories', type=int, default=50, help='number of trajectories per environment')
     parser.add_argument('--beta_start', type=float, default=1.0)
     parser.add_argument('--beta_end', type=float, default=0.0)
-    parser.add_argument('--beta_delta', type=float, default=0.0001)#anneals beta to zero after 10k steps
+    parser.add_argument('--beta_delta', type=float, default=0.0001)  # anneals beta to zero after 10k steps
     parser.add_argument('--policy_interpolation_routine', type=str, help='args module.functionname ; '
                                                                          'function to generate new policy')
     parser.add_argument('--student', type=str, default=None)

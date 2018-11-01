@@ -30,7 +30,7 @@ def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
                        for key in episode_batch.keys()}
 
         # Select future time indexes proportional with probability future_p. These
-        # will be used for HER replay by substituting in future goals.
+        # will be used for HER replay by substituting in future goals.a
         her_indexes = np.where(np.random.uniform(size=batch_size) < future_p)
         future_offset = np.random.uniform(size=batch_size) * (T - t_samples)
         future_offset = future_offset.astype(int)

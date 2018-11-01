@@ -1,5 +1,7 @@
 import numpy as np
 import gym
+from osim.env import ProstheticsEnv, L2RunEnv
+
 
 from baselines import logger
 from baselines.her.ddpg import DDPG
@@ -65,25 +67,33 @@ def cached_make_env(make_env):
 def prepare_params(kwargs):
     # DDPG params
     ddpg_params = dict()
+    env_name = ''
+    if 'env_name' in kwargs:
+        env_name = kwargs['env_name']
 
-    env_name = kwargs['env_name']
-
-    if isinstance(env_name, list) or isinstance(env_name, tuple):
-        assert isinstance(env_name[0], str)
-        def make_env():
-            make_env.counter +=1
-            name = env_name[make_env.counter % len(env_name)] # iterate through env_name list
-            env = gym.make(name)
-            env.name = name
-            return env
-    else:
-        def make_env():
-            env = gym.make(env_name)
-            env.name = env_name
-            return env
-
-    make_env.counter = 0
-    kwargs['make_env'] = make_env
+    # if isinstance(env_name, list) or isinstance(env_name, tuple):
+    #     assert isinstance(env_name[0], str)
+    #     def make_env():
+    #         make_env.counter +=1
+    #         name = env_name[make_env.counter % len(env_name)] # iterate through env_name list
+    #         env = gym.make(name)
+    #         env.name = name
+    #         return env
+    # else:
+    #     def make_env():
+    #         env = gym.make(env_name)
+    #         env.name = env_name
+    #         return env
+    #
+    # make_env.counter = 0
+    def make_env():
+        # env = L2RunEnv(visualize=False)  # (visualize=True)
+        # env._max_episode_steps = 2000
+        env = gym.make('HandManipulateBlock-v0')
+        env.name = env_name
+        return env
+    if 'make_env' not in kwargs.keys():
+        kwargs['make_env'] = make_env
     tmp_env = cached_make_env(kwargs['make_env'])
     assert hasattr(tmp_env, '_max_episode_steps')
     kwargs['T'] = tmp_env._max_episode_steps
@@ -116,7 +126,7 @@ def log_params(params, logger=logger):
         logger.info('{}: {}'.format(key, params[key]))
 
 
-def configure_her(params):
+def configure_her(params, make_her_function=None):
     env = cached_make_env(params['make_env'])
     env.reset()
 
@@ -131,7 +141,10 @@ def configure_her(params):
         her_params[name] = params[name]
         params['_' + name] = her_params[name]
         del params[name]
-    sample_her_transitions = make_sample_her_transitions(**her_params)
+    if make_her_function is None:
+        sample_her_transitions = make_sample_her_transitions(**her_params)
+    else:
+        sample_her_transitions = make_her_function(**her_params)
 
     return sample_her_transitions
 
@@ -141,8 +154,11 @@ def simple_goal_subtract(a, b):
     return a - b
 
 
-def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True, scope=None):
-    sample_her_transitions = configure_her(params)
+def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True, scope=None, make_her_function=None):
+    if make_her_function is None or callable(make_her_function):  # semueller
+        sample_her_transitions = configure_her(params, make_her_function)
+    else:
+        raise TypeError('make_her_function, needs to be None or a callable but was {}'.format(type(make_her_function)))
     # Extract relevant parameters.
     gamma = params['gamma']
     rollout_batch_size = params['rollout_batch_size']

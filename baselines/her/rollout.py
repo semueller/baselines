@@ -106,7 +106,8 @@ class RolloutWorker:
         and `g` arrays accordingly.
         """
         obs = self.envs[i].reset()
-        obs['observation'] = np.concatenate([obs['observation'], [1.0, 0.0]])
+        if self.codebook is not None:
+            obs['observation'] = np.concatenate([obs['observation'], self.codebook[self.envs[i].name]])
         if self.wf:
             self.initial_o[i] = np.append(obs['observation'], np.ndarray([0 for _ in range(16)]))
         else:
