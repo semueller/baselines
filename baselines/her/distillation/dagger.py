@@ -56,6 +56,9 @@ def simple_rollout_worker(env_id='', codebook=None, params=None):
 
 
 def blank_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True, scope=None, env_names=None):
+    '''
+    constructs a ddpg agent. this way the global standard config for ddpg does not get unusable after first usage
+    '''
     logger.info("creating ddpg agent with env: {} on scope {}".format(env_names, scope))
     sample_her_transitions = config.configure_her(params)
     # sample_her_transitions = configure_her(params)
@@ -70,9 +73,9 @@ def blank_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True, scope=
     # DDPG agent
     # env = cached_make_env(params['make_env'])
     # env.reset()
-    ddpg_params.update({'input_dims': input_dims,  # agent takes an input observations
+    ddpg_params.update({'input_dims': input_dims,
                         'T': params['T'],
-                        'clip_pos_returns': True,  # clip positive returns
+                        'clip_pos_returns': True,
                         'clip_return': (1. / (1. - gamma)) if clip_return else np.inf,  # max abs of return
                         'rollout_batch_size': rollout_batch_size,
                         'subtract_goals': None,
@@ -137,19 +140,22 @@ def run(args):
             action_size = worker.dims['u']  # env.action_space.shape[0]  # should be 20
             dims = {'u': action_size,  # see config.configure_dims
                     'o': observation_size,
-                    'g': 7  # ? goal size?
+                    'g': 7
                     }
             cfg['replay_strategy'] = None
             cfg['T'] = worker.envs[0]._max_episode_steps
+            # blank, uninitialilzed agent with a specific scope
             policy = blank_ddpg(dims=dims, params=cfg, env_names=env_id, scope=scope)
+            # finding uninitialized vars via scope
             vars_to_load = [n for n in tf.global_variables() if scope in n.name]
-            load_policy(expert, sess, var_list=vars_to_load)  # this hopefully initializes the previously constructed
+            # loading those variables from file
+            load_policy(expert, sess, var_list=vars_to_load)
             experts[env_id] = policy
 
         # config and load student
         cfg = config.DEFAULT_PARAMS.copy()
         cfg['replay_strategy'] = None
-        cfg['T'] = experts[env_ids[0]].T  # T IS TIME HORIZON FOR TRAINING?
+        cfg['T'] = experts[env_ids[0]].T
         cfg['env_name'] = env_ids
         cfg = config.prepare_params(cfg)
         scope_student = args.student.split('/')[-1]
@@ -166,35 +172,37 @@ def run(args):
         b = student.buffer  # remove student original buffer
         student.buffer = None
         del b
+        # load student
         vars_to_load = [n for n in tf.global_variables() if scope_student in n.name]
         load_policy(path=args.student, sess=sess, var_list=vars_to_load )
         cfg = config.DEFAULT_PARAMS.copy()
         cfg['replay_strategy'] = None
-        cfg['T'] = experts[env_ids[0]].T  # T IS TIME HORIZON FOR TRAINING?
+        cfg['T'] = experts[env_ids[0]].T
         cfg['env_name'] = env_ids
         cfg = config.prepare_params(cfg)
-        # build a dummy for temporary storage
+        # build a dummy for temporary storage of the interpolated ddpg agent
         dummy = blank_ddpg(dims=dims, params=cfg, scope='dummy', env_names=env_ids)
-
-        # still necessary?
-        # prep_input_injection(student, num_extra_inputs=num_extra_inputs) # call global_variables_initializer here
 
         # get policy interpolation routine
         pir = getfunc(args.policy_interpolation_routine)
 
         best_performance = [-1]*len(env_ids)
 
+        n_batches = config.DEFAULT_PARAMS['n_batches']
         # repeat
         with open('training_data.pkl', 'a+b') as training_data_log:
             for epoch in range(num_epochs):
-                beta = float(epoch+1) / float(num_epochs)
+                beta = float(epoch+1) / float(num_epochs)  # policy interpolation parameter
                 logger.info('epoch: {}\nbeta: {}'.format(epoch, beta))
+
                 # generate observations
-                for id in env_ids:
-                    rollout_worker = rollout_workers[id]
-                    expert = experts[id]
+                for id in env_ids:  # cycle through all tasks our expert/ student is capable of
+                    rollout_worker = rollout_workers[id]  # used to generate data
+                    expert = experts[id]  # get the corresponding expert for the current env
 
                     # get dummy policy to be used for this iteration
+                    # pir = policy interpolation routine, interpolates between \\
+                    #       student and expert and outputs in dummy
                     pir(beta=beta, temp=dummy, expert=expert, student=student)
                     logger.info("generate observations in {}".format(id))
                     rollout_worker.policy = dummy
@@ -204,10 +212,8 @@ def run(args):
                     student.buffer = student._env_specific_buffers[id]
                     student.store_episode(episode)
 
-                    # training_data_log.write(str(episode)+'\n')
-                    pickle.dump(episode, training_data_log)  # thread safety?
+                    pickle.dump(episode, training_data_log)  # dump training data
 
-                    n_batches = config.DEFAULT_PARAMS['n_batches']  # since we are single threaded lets increase this?
                     logger.info("starting training in epoch {}".format(epoch))
                     # replace critic network of student with actor network of expert
                     sess.run([tf.assign(s, t) for t, s in zip(
@@ -215,9 +221,10 @@ def run(args):
                                     tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=student.scope + '/target')
                                     )])
                     #  train on env with new buffer
-                    for b in range(n_batches):
+                    for b in range(n_batches):  # n_batches = config.DEFAULT_PARAMS['n_batches']
                         logger.info("   training batch {}".format(b))
-                        student.train_distillation(sess, expert)
+                        # this does not update the target net
+                        student.train()
 
                     rollout_worker.clear_history()
 
@@ -229,9 +236,12 @@ def run(args):
                     rollout_worker = rollout_workers[id]
                     rollout_worker.policy = student
                     for _ in range(n_test_rollouts):
+                        rollout_worker.render = True
                         rollout_worker.generate_rollouts()
+                        rollout_worker.render = False
                     # current_success_rate[i] = rollout_worker.current_success_rate()
                     current_success_rate[i] = mpi_average(rollout_worker.current_success_rate())
+                print(current_success_rate)
                 # save better policy
                 if rank == 0 and max(current_success_rate) >= max(best_performance) and False:
                     best_performance = [sr if sr >= bp else bp for sr, bp in zip(current_success_rate, best_performance)]
@@ -241,8 +251,8 @@ def run(args):
                         os.makedirs(path)
                     vars_to_save = [v for v in tf.global_variables() if student.scope in v.name]
                     saver = tf.train.Saver(var_list=vars_to_save)
-                    saver.save(sess=sess, save_path=path+'model.ckpt')
-                    rollout_worker.save_policy(path+'policy.pkl')  # for easy use with play.py
+                    # saver.save(sess=sess, save_path=path+'model.ckpt')
+                    # rollout_worker.save_policy(path+'policy.pkl')  # for easy use with play.py
                     with open(path+'epoch.txt', 'a') as file:
                         file.write(str(epoch)+'\n')  # logs in which epoch(s) the policy was saved in path
 

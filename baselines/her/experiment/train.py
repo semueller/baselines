@@ -58,10 +58,11 @@ def train(env, policy, rollout_worker, evaluator,
     if policy_path is not None:
         saver.restore(policy.sess, policy_path+model_name)
         logger.info("Successfully restored policy from {}".format(policy_path))
-    # return
-    # evaluator.save_policy(policy_path+'policy.pkl')
-    # print("saved {}".format(policy_path+"policy.pkl"))
-    
+    evaluator.policy = policy
+    evaluator.save_policy(policy_path+'policy.pkl')
+    print("saved {}".format(policy_path+"policy.pkl"))
+    return
+
     if policy_path is None:
         policy_path = ''.join(['./trained/', str(env), '_', policy.scope, '/'])
         if not os.path.exists(policy_path):

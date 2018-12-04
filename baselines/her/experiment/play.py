@@ -22,7 +22,7 @@ def main(policy_file, seed, n_test_rollouts, render, with_forces, env):
     with open(policy_file, 'rb') as f:
         policy = pickle.load(f)
     env_name = policy.info['env_name']
-    env_name = 'HandManipulatePen-v0'
+    env_name = 'HandManipulateBlock-v0'
 
     # one hot encoding
     # codebook as in trianing:
@@ -61,7 +61,7 @@ def main(policy_file, seed, n_test_rollouts, render, with_forces, env):
         'rollout_batch_size': 1,
         'with_forces': with_forces,
         'plot_forces': False,
-        'render': bool(render),
+        'render': bool(0),
     }
 
     for name in ['T', 'gamma', 'noise_eps', 'random_eps']:

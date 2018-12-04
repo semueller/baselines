@@ -214,16 +214,6 @@ class DDPG(object):
         self._update(Q_grad, pi_grad)
         return critic_loss, actor_loss
 
-    def train_distillation(self, sess, expert):
-        # naive approach, if this does not work, tf.assign all values from expert.main to self.target
-        # self.target = expert.main  # YOLO  # wtf this runs  # but does no reassignment...
-        # so we try to do this manually now!
-        # move everything from student to temp
-        # works, moves expert.main into student.target but it takes forever
-
-        self.train()
-
-
     def _init_target_net(self):
         self.sess.run(self.init_target_net_op)
 

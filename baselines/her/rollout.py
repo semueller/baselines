@@ -38,6 +38,8 @@ class RolloutWorker:
         """
         self.dims = dims
         self.codebook = codebook
+        if self.codebook is not None:
+            print("Codebook used for the environments: {}".format(codebook))
         if callable(make_env):
             self.envs = [make_env() for _ in range(rollout_batch_size)]
         elif isinstance(make_env, list): # list?
@@ -97,7 +99,7 @@ class RolloutWorker:
 
             self.lines = [self.ax.plot(self.xdata, self.forcedata[i])[0] for i in range(self.NUM_SENSORS)]
 
-        self.render_and_save_png = False  # ndrw
+        self.render_and_save_png = True  # ndrw
         self.render = False
 
 

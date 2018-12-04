@@ -1,2 +1,0 @@
-model_checkpoint_path: "/dev/shm/semueller/trained/multi_policy1/model.ckpt"
-all_model_checkpoint_paths: "/dev/shm/semueller/trained/multi_policy1/model.ckpt"
