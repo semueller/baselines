@@ -255,6 +255,17 @@ def run(args):
                     with open(path+'epoch.txt', 'a') as file:
                         file.write(str(epoch)+'\n')  # logs in which epoch(s) the policy was saved in path
 
+                if epoch % 25 == 0:
+                    path = args.student + '/periodic/' + '_{}/'.format(epoch)
+                    logger.info('saving student to {}'.format(path))
+                    if not os.path.exists(path):
+                        os.makedirs(path)
+                    vars_to_save = [v for v in tf.global_variables() if student.scope in v.name]
+                    saver = tf.train.Saver(var_list=vars_to_save)
+                    saver.save(sess=sess, save_path=path+'model.ckpt')
+                    rollout_worker.save_policy(path+'policy.pkl')  # for easy use with play.py
+
+
                 local_uniform = np.random.uniform(size=(1,))
                 root_uniform = local_uniform.copy()
                 MPI.COMM_WORLD.Bcast(root_uniform, root=0)
