@@ -99,7 +99,7 @@ class RolloutWorker:
 
             self.lines = [self.ax.plot(self.xdata, self.forcedata[i])[0] for i in range(self.NUM_SENSORS)]
 
-        self.render_and_save_png = True  # ndrw
+        self.render_and_save_png = False  # ndrw
         self.render = False
 
 
