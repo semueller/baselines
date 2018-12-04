@@ -1,0 +1,2 @@
+model_checkpoint_path: "/dev/shm/semueller/policies/distilled/0.0000_0.0000/model.ckpt"
+all_model_checkpoint_paths: "/dev/shm/semueller/policies/distilled/0.0000_0.0000/model.ckpt"
