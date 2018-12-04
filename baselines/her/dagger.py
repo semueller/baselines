@@ -236,14 +236,13 @@ def run(args):
                     rollout_worker = rollout_workers[id]
                     rollout_worker.policy = student
                     for _ in range(n_test_rollouts):
-                        rollout_worker.render = True
+                        # rollout_worker.render = True
                         rollout_worker.generate_rollouts()
-                        rollout_worker.render = False
-                    # current_success_rate[i] = rollout_worker.current_success_rate()
+                        # rollout_worker.render = False
                     current_success_rate[i] = mpi_average(rollout_worker.current_success_rate())
-                print("\n\n\ncurrent success rate in test envs: {} \n\n\n".format(current_success_rate))
+                print(current_success_rate)
                 # save better policy
-                if rank == 0 and max(current_success_rate) >= max(best_performance) and False:
+                if rank == 0 and max(current_success_rate) >= max(best_performance):
                     best_performance = [sr if sr >= bp else bp for sr, bp in zip(current_success_rate, best_performance)]
                     path = args.student + '/' + '_'.join(['%.2f' % b for b in best_performance])+'/'
                     logger.info('saving student to {}'.format(best_performance))
@@ -251,8 +250,8 @@ def run(args):
                         os.makedirs(path)
                     vars_to_save = [v for v in tf.global_variables() if student.scope in v.name]
                     saver = tf.train.Saver(var_list=vars_to_save)
-                    # saver.save(sess=sess, save_path=path+'model.ckpt')
-                    # rollout_worker.save_policy(path+'policy.pkl')  # for easy use with play.py
+                    saver.save(sess=sess, save_path=path+'model.ckpt')
+                    rollout_worker.save_policy(path+'policy.pkl')  # for easy use with play.py
                     with open(path+'epoch.txt', 'a') as file:
                         file.write(str(epoch)+'\n')  # logs in which epoch(s) the policy was saved in path
 
