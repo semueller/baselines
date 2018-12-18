@@ -7,22 +7,28 @@ from baselines.common import set_global_seeds
 import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
 
+import sys
 
-@click.command()
-@click.argument('policy_file', type=str)
-@click.option('--seed', type=int, default=0)
-@click.option('--n_test_rollouts', type=int, default=10)
-@click.option('--render', type=int, default=1)
-@click.option('--with_forces', type=bool, default=False)
-@click.option('--env', type=str, default=None)
-def main(policy_file, seed, n_test_rollouts, render, with_forces, env):
+import tensorflow as tf
+
+# @click.command()
+# @click.argument('policy_file', type=str)
+# @click.option('--seed', type=int, default=0)
+# @click.option('--n_test_rollouts', type=int, default=10)
+# @click.option('--render', type=int, default=1)
+# @click.option('--with_forces', type=bool, default=False)
+# @click.option('--env', type=str, default=None)
+# @click.option('--env_name', type=str, default=None)
+# @click.option('--policy_number', type=int, default=None)
+def main(policy_file, seed=0, n_test_rollouts=10, render=1, with_forces=False, env=None, env_name=None, policy_number=None):
     set_global_seeds(seed)
 
     # Load policy.
     with open(policy_file, 'rb') as f:
         policy = pickle.load(f)
-    env_name = policy.info['env_name']
-    env_name = 'HandManipulateBlock-v0'
+
+    # env_name = policy.info['env_name']
+    # env_name = 'HandManipulateBlock-v0'
 
     # one hot encoding
     # codebook as in trianing:
@@ -66,6 +72,8 @@ def main(policy_file, seed, n_test_rollouts, render, with_forces, env):
 
     for name in ['T', 'gamma', 'noise_eps', 'random_eps']:
         eval_params[name] = params[name]
+    eval_params['env_name'] = env_name
+    eval_params['policy_number'] = policy_number
     evaluator = RolloutWorker(params['make_env'], policy, dims, logger, codebook=codebook, **eval_params)
     evaluator.seed(seed)
 
@@ -81,4 +89,14 @@ def main(policy_file, seed, n_test_rollouts, render, with_forces, env):
 
 
 if __name__ == '__main__':
-    main()
+    print(sys.argv)
+    x = int(sys.argv[1])
+    env_name = sys.argv[2]
+    print(x, env_name)
+    policy_file = 'policy.pkl'
+    basepath = '/home/bing/git/robo_arms/policies/periodic/'
+    full_path = lambda x: basepath+'_{}/'.format(x)+policy_file
+    p = full_path(x)
+    print(p)
+    main(policy_file=p, env_name=env_name, policy_number=x)
+

@@ -23,7 +23,7 @@ keys/
 #logs/
 #trained/
 vids/
-png/ 
+#png/ 
 .ipynb_checkpoints
 ghostdriver.log
 

@@ -38,6 +38,10 @@ class RolloutWorker:
         """
         self.dims = dims
         self.codebook = codebook
+        self.dirparams = {
+            'env_name': kwargs['env_name'],
+            'policy_number': kwargs['policy_number']
+                         }
         if self.codebook is not None:
             print("Codebook used for the environments: {}".format(codebook))
         if callable(make_env):
@@ -99,7 +103,7 @@ class RolloutWorker:
 
             self.lines = [self.ax.plot(self.xdata, self.forcedata[i])[0] for i in range(self.NUM_SENSORS)]
 
-        self.render_and_save_png = False  # ndrw
+        self.render_and_save_png = True  # ndrw
         self.render = False
 
 
@@ -128,6 +132,7 @@ class RolloutWorker:
         policy acting on it accordingly.
         """
         directory = './png/'#+datetime.datetime.now().strftime("%m%d_%H%M%S") + os.sep
+        directory += '{}'.format(self.dirparams['policy_number'])+'/'+self.dirparams['env_name']+'/'
 
         self.reset_all_rollouts()
 
