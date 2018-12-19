@@ -255,7 +255,7 @@ def run(args):
                     with open(path+'epoch.txt', 'a') as file:
                         file.write(str(epoch)+'\n')  # logs in which epoch(s) the policy was saved in path
 
-                if epoch % 25 == 0:
+                if epoch % 25 == 0 and rank == 0:
                     path = args.student + '/periodic/' + '_{}/'.format(epoch)
                     logger.info('saving student to {}'.format(path))
                     if not os.path.exists(path):

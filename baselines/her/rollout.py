@@ -131,8 +131,8 @@ class RolloutWorker:
         """Performs `rollout_batch_size` rollouts in parallel for time horizon `T` with the current
         policy acting on it accordingly.
         """
-        directory = './png/'#+datetime.datetime.now().strftime("%m%d_%H%M%S") + os.sep
-        directory += '{}'.format(self.dirparams['policy_number'])+'/'+self.dirparams['env_name']+'/'
+        directory = './_png/'#+datetime.datetime.now().strftime("%m%d_%H%M%S") + os.sep
+        directory += '{}_easy'.format(self.dirparams['policy_number'])+'/'+self.dirparams['env_name']+'/'
 
         self.reset_all_rollouts()
 

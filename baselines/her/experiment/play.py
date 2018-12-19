@@ -96,7 +96,7 @@ if __name__ == '__main__':
     policy_file = 'policy.pkl'
     basepath = '/home/bing/git/robo_arms/policies/periodic/'
     full_path = lambda x: basepath+'_{}/'.format(x)+policy_file
-    p = full_path(x)
+    p = '/home/bing/git/baselines/baselines/her/distillation/policies/block/policy.pkl'
     print(p)
     main(policy_file=p, env_name=env_name, policy_number=x)
 

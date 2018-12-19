@@ -1,6 +1,6 @@
 #!/bin/sh
 echo `which python`
-for i in $(seq 0 25 650);
+for i in 0 25 50 100 200;
  do
    for e in "HandManipulateBlock-v0" "HandManipulatePen-v0"
      do
